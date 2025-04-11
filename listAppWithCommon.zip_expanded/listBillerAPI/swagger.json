@@ -1,0 +1,26 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "title" : "listBillerAPI",
+    "version" : "1.0.0",
+    "description" : "listBillerAPI"
+  },
+  "paths" : {
+    "/" : {
+      "get" : {
+        "operationId" : "getListBiller",
+        "responses" : {
+          "200" : {
+            "description" : "The operation was successful.",
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        },
+        "produces" : [ "application/json" ],
+        "description" : "Retrieve listBiller"
+      }
+    }
+  },
+  "basePath" : "/listbiller"
+}

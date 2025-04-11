@@ -1,0 +1,35 @@
+
+BROKER SCHEMA com.fidilitybank.co.zw.dblogging
+PATH com.fidilitybank.co.zw.common.esql;
+
+DECLARE LOG_CONFIG_PATH EXTERNAL CHARACTER'';
+CREATE DATABASE MODULE Fidelity_Bank_DB_Logging_App_NewEsql
+	DECLARE DBDSN EXTERNAL CHARACTER;
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE inRef REFERENCE TO Root.XMLNSC.logData;
+		DECLARE rc BOOLEAN FALSE;
+		CALL initLog4j(LOG_CONFIG_PATH) INTO rc;
+		DECLARE ccidRef INTEGER Root.Properties.CodedCharSetId;
+		DECLARE encodeRef INTEGER Root.Properties.Encoding;
+		CALL writeToLogFile(MessageFlowLabel, 'RawLogger', 'DEBUG','..............'||CAST(inRef.msgId AS CHARACTER)||inRef.logpoint||'..............') INTO rc;
+		CALL writeToLogFile(MessageFlowLabel, 'RawLogger', 'DEBUG',CAST(inRef.msgId AS CHARACTER)||inRef.payLoad) INTO rc;
+		DECLARE creationDate TIMESTAMP CAST(CURRENT_TIMESTAMP AS TIMESTAMP FORMAT 'IU');
+
+		DECLARE Insert_Query CHARACTER;
+		SET Insert_Query = 'Insert into RAW_AUDIT_LOGGING (MSGID,LOGGING_TIME,MESSAGETYPE,
+		APPNAME,BROKER,TIME_LOCAL_TRANSACTION,DATE_LOCAL_TRANSACTION,
+		RETRIEVAL_REFERENCE_NUMBER,MESSAGE) values (?,?,?,?,?,?,?,?,?)';
+
+		SET Environment.InsertData = PASSTHRU(Insert_Query TO Database.{DBDSN} VALUES (inRef.msgId,
+									CAST(CURRENT_TIMESTAMP AS TIMESTAMP FORMAT 'DD-MON-RR HH.MI.SSXFF AM'),
+									inRef.logpoint, --domainName,
+									inRef.serviceName,
+									BrokerName,
+									CURRENT_TIME,
+									CURRENT_DATE,
+									'NULL',
+									inRef.payLoad));
+		RETURN TRUE;
+	END;
+END MODULE;

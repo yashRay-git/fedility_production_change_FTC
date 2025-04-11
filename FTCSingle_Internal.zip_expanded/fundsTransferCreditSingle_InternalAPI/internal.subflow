@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmWSRequest.msgnode="ComIbmWSRequest.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="internal.subflow" nsPrefix="internal.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" nodeLayoutStyle="SQUARE">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.CustInfoServiceReq" name="CustInfoServiceReq" defaultValueLiteral="http://localhost:7800/CBS">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.CreateTransactionReq" name="CreateTransactionReq" defaultValueLiteral="http://localhost:7800/cbs_rtService">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.QueryTransactionReq" name="QueryTransactionReq" defaultValueLiteral="http://localhost:7800/QueryTransactionReq">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.GhIPSSReq" name="GhIPSSReq" defaultValueLiteral="http://localhost:7800/GhIPSSReq">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.ReverseRTServiceReq" name="ReverseRTServiceReq" defaultValueLiteral="http://localhost:7800/ReverseRTServiceReq">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.TSQueryReq" name="TSQueryReq" defaultValueLiteral="http://localhost:7800/TSQueryReq">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.Password" name="Password" defaultValueLiteral="3104b15a6e5e57ee5663f64e6a1fb0d940d7824c875e42d35f9a30a72">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="internal" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/fundsTransferCreditSingle_InternalAPI/icons/full/obj16/internal.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/fundsTransferCreditSingle_InternalAPI/icons/full/obj30/internal.gif"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="Input" location="80,25">
+        <translation xmi:type="utility:TranslatableString" key="Input" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+      </nodes>
+      <nodes xmi:type="ComIbmWSRequest.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="418,109" URLSpecifier="http://localhost:7800/Ghipss">
+        <translation xmi:type="utility:ConstantString" string="HTTP Request"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="267,109" computeExpression="esql://routine/#fundsTransferCredit_Compute.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="Framing_Request"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="Output" location="605,25">
+        <translation xmi:type="utility:TranslatableString" key="Output" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="578,109" computeExpression="esql://routine/#fundstransfercredit_Res.Main">
+        <translation xmi:type="utility:ConstantString" string="Gather_Response"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="Output" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out2" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_2" sourceNode="Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.CustInfoServiceReq">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.CustInfoServiceReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+        <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.CreateTransactionReq">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.CreateTransactionReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+          <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.QueryTransactionReq">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.QueryTransactionReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+            <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.GhIPSSReq">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.GhIPSSReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+              <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.ReverseRTServiceReq">
+                <propertyName xmi:type="utility:TranslatableString" key="Property.ReverseRTServiceReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+                <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.TSQueryReq">
+                  <propertyName xmi:type="utility:TranslatableString" key="Property.TSQueryReq" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+                  <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.Password">
+                    <propertyName xmi:type="utility:TranslatableString" key="Property.Password" bundleName="internal" pluginId="fundsTransferCreditSingle_InternalAPI"/>
+                  </propertyDescriptor>
+                </propertyDescriptor>
+              </propertyDescriptor>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

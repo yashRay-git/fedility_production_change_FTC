@@ -1,0 +1,370 @@
+
+
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE soapres CHARACTER '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+   <S:Body>
+      <CREATETRANSACTION_FSFS_RES xmlns="http://fcubs.ofss.com/service/FCUBSRTService">
+         <FCUBS_HEADER>
+            <SOURCE>FLEXCUBE</SOURCE>
+            <UBSCOMP>FCUBS</UBSCOMP>
+            <MSGID>9241880685291459</MSGID>
+            <CORRELID>00430011003</CORRELID>
+            <USERID>PAPSSUSER</USERID>
+            <BRANCH>701</BRANCH>
+            <MODULEID>RT</MODULEID>
+            <SERVICE>FCUBSRTService</SERVICE>
+            <OPERATION>CreateTransaction</OPERATION>
+            <SOURCE_USERID>PAPSSUSER</SOURCE_USERID>
+            <DESTINATION>GIP</DESTINATION>
+            <MULTITRIPID>6241880887225719</MULTITRIPID>
+            <FUNCTIONID>DEGRTTLR</FUNCTIONID>
+            <ACTION>NEW</ACTION>
+            <MSGSTAT></MSGSTAT>
+         </FCUBS_HEADER>
+         <FCUBS_BODY>
+            <Transaction-Details>
+               <XREF>101900066199</XREF>
+               <FCCREF>701PA02212280053</FCCREF>
+               <PRD>PA02</PRD>
+               <BRN>701</BRN>
+               <TXNBRN>701</TXNBRN>
+               <TXNACC>1055321777616</TXNACC>
+               <TXNCCY>GHS</TXNCCY>
+               <TXNAMT>1</TXNAMT>
+               <TXNTRN>PAP</TXNTRN>
+               <OFFSETBRN>000</OFFSETBRN>
+               <OFFSETACC>100131095</OFFSETACC>
+               <OFFSETCCY>GHS</OFFSETCCY>
+               <OFFSETAMT>1</OFFSETAMT>
+               <OFFSETTRN>PAP</OFFSETTRN>
+               <XRATE>1</XRATE>
+               <LCYAMT>1</LCYAMT>
+               <TXNDATE>2021-08-16</TXNDATE>
+               <VALDATE>2021-08-16</VALDATE>
+               <RELCUST>3217776</RELCUST>
+               <TCYCHGAMT>0</TCYCHGAMT>
+               <TCYTOTCHGAMT>0</TCYTOTCHGAMT>
+               <NARRATIVE>GIFMIS Debit TransferP04001?</NARRATIVE>
+               <MAKERID>PAPSSUSER</MAKERID>
+               <MAKERSTAMP>2021-08-16 12:55:53 PM</MAKERSTAMP>
+               <CHECKERID>PAPSSUSER</CHECKERID>
+               <CHECKERSTAMP>2021-08-16 12:55:53 PM</CHECKERSTAMP>
+               <RECSTAT>O</RECSTAT>
+               <AUTHSTAT>A</AUTHSTAT>
+               <LCYCHGAMT>0</LCYCHGAMT>
+               <DRACC>OFS</DRACC>
+               <TXNDRCR>C</TXNDRCR>
+               <BOOKDATE>2021-08-16</BOOKDATE>
+               <FT>N</FT>
+               <LCYTOTCHGAMT>0</LCYTOTCHGAMT>
+               <DENMCCY1>GHS</DENMCCY1>
+               <DENMAMT1>0</DENMAMT1>
+               <DENMAMT2>0</DENMAMT2>
+               <ACCTITLE1>WORD PROPERTIES COMPANY LIMITED-AGENT TRANSACTION ACCOUNT</ACCTITLE1>
+               <ACCTITLE2>PAPSS INBOUND</ACCTITLE2>
+               <ACTAMT>1</ACTAMT>
+               <Charge-Details>
+                  <CHGCOMP>TXN_FEE</CHGCOMP>
+                  <CHGAMT>0</CHGAMT>
+                  <CHGCCY>GHS</CHGCCY>
+                  <MISHEAD>INCOME</MISHEAD>
+                  <TXNCODE>PAP</TXNCODE>
+                  <NETTINGIND>N</NETTINGIND>
+                  <CHGGL>310006168</CHGGL>
+                  <TYPE>F</TYPE>
+                  <LCYCHG>0</LCYCHG>
+                  <XRATE>1</XRATE>
+               </Charge-Details>
+               <Cheque-Details>
+                  <SRNO>1</SRNO>
+                  <CHQNO>300311</CHQNO>
+                  <BENFNAME>GIP TRANSFER</BENFNAME>
+                  <BENFADDR1>1030835430712</BENFADDR1>
+               </Cheque-Details>
+            </Transaction-Details>
+            <FCUBS_WARNING_RESP>
+               <WARNING>
+                  <WCODE>GW-SAV-01</WCODE>
+                  <WDESC>Transaction Saved Successfully</WDESC>
+               </WARNING>
+            </FCUBS_WARNING_RESP>
+         </FCUBS_BODY>
+      </CREATETRANSACTION_FSFS_RES>
+   </S:Body>
+</S:Envelope>';
+
+		DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') PARSE(myBlob);
+--		CREATE LASTCHILD OF OutputRoot DOMAIN('SOAP') PARSE(soapres CCSID 1208);
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute1
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE soapres CHARACTER '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+   <soapenv:Body>
+      <ns2:GIPTransactionOpResponse xmlns:ns2="com.ghipss.gip">
+         <GIPTransactionResponse>
+            <Amount>000000000100</Amount>
+            <datetime>2407061803</datetime>
+            <TrackingNum>127288</TrackingNum>
+            <FunctionCode>240</FunctionCode>
+            <OrigineBank>300323</OrigineBank>
+            <DestBank>300311</DestBank>
+            <SessionID>101900066199</SessionID>
+            <NameToDebit>WORD PROPERTIES COMPANY LIMITED</NameToDebit>
+            <AccountToDebit>1055321777616</AccountToDebit>
+            <NameToCredit>JOHN MENSAH</NameToCredit>
+            <AccountToCredit>1030835430712</AccountToCredit>
+            <Narration>TEST TRANSACTION</Narration>
+            <OneTimePassword xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+            <Login xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+            <Password xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+            <ActCode>381</ActCode>
+            <AprvCode>0000</AprvCode>
+         </GIPTransactionResponse>
+      </ns2:GIPTransactionOpResponse>
+   </soapenv:Body>
+</soapenv:Envelope>';
+		DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') PARSE(myBlob);
+--		CREATE LASTCHILD OF OutputRoot DOMAIN('SOAP') PARSE(soapres CCSID 1208);
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute2
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE soapres CHARACTER '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+   <S:Body>
+      <QUERYTRANSACTION_IOFS_RES xmlns="http://fcubs.ofss.com/service/FCUBSRTService">
+         <FCUBS_HEADER>
+            <SOURCE>FLEXCUBE</SOURCE>
+            <UBSCOMP>FCUBS</UBSCOMP>
+            <MSGID>9210460413125522</MSGID>
+            <CORRELID>YW3152455211</CORRELID>
+            <USERID>YSAVEUSER</USERID>
+            <BRANCH>083</BRANCH>
+            <MODULEID>RT</MODULEID>
+            <SERVICE>FCUBSRTService</SERVICE>
+            <OPERATION>QueryTransaction</OPERATION>
+            <SOURCE_USERID>YSAVEUSER</SOURCE_USERID>
+            <DESTINATION>YELLOSAVE</DESTINATION>
+            <MULTITRIPID>6210460596106473</MULTITRIPID>
+            <FUNCTIONID>DEDQUERY</FUNCTIONID>
+            <ACTION>EXECUTEQUERY</ACTION>
+            <MSGSTAT>SUCCESS</MSGSTAT>
+         </FCUBS_HEADER>
+         <FCUBS_BODY>
+            <Transaction-Details>
+               <XREF>YD34761672</XREF>
+               <FCCREF>083YD01202235453</FCCREF>
+               <PRD>YD01</PRD>
+               <BRN>083</BRN>
+               <TXNBRN>083</TXNBRN>
+               <TXNACC>2089945631311</TXNACC>
+               <TXNCCY>GHS</TXNCCY>
+               <TXNAMT>12.11</TXNAMT>
+               <TXNTRN>YST</TXNTRN>
+               <OFFSETBRN>000</OFFSETBRN>
+               <OFFSETACC>132003035</OFFSETACC>
+               <OFFSETCCY>GHS</OFFSETCCY>
+               <OFFSETAMT>12.11</OFFSETAMT>
+               <OFFSETTRN>YST</OFFSETTRN>
+               <XRATE>1</XRATE>
+               <LCYAMT>12.11</LCYAMT>
+               <TXNDATE>2020-09-11</TXNDATE>
+               <VALDATE>2020-09-11</VALDATE>
+               <RELCUST>9456313</RELCUST>
+               <TCYCHGAMT>0</TCYCHGAMT>
+               <TCYTOTCHGAMT>0</TCYTOTCHGAMT>
+               <NARRATIVE>Testing Yellowsave Deposit</NARRATIVE>
+               <MAKERID>YSAVEUSER</MAKERID>
+               <MAKERSTAMP>2020-08-10 14:34:58 PM</MAKERSTAMP>
+               <CHECKERID>YSAVEUSER</CHECKERID>
+               <CHECKERSTAMP>2020-08-10 14:35:00 PM</CHECKERSTAMP>
+               <RECSTAT>O</RECSTAT>
+               <AUTHSTAT>A</AUTHSTAT>
+               <LCYCHGAMT>0</LCYCHGAMT>
+               <DRACC>OFS</DRACC>
+               <TXNDRCR>C</TXNDRCR>
+               <BOOKDATE>2020-09-11</BOOKDATE>
+               <FT>N</FT>
+               <LCYTOTCHGAMT>0</LCYTOTCHGAMT>
+               <DENMCCY1>GHS</DENMCCY1>
+               <DENMAMT1>0</DENMAMT1>
+               <DENMAMT2>0</DENMAMT2>
+               <ACCTITLE1>ADOGLA BESSA TSATSU JNR YELLO SAVE ACCOUNT</ACCTITLE1>
+               <ACCTITLE2>YELLO SAVE E-TELLER</ACCTITLE2>
+               <Charge-Details>
+                  <CHGCOMP>FC_CHARGES</CHGCOMP>
+                  <CHGAMT>0</CHGAMT>
+                  <CHGCCY>GHS</CHGCCY>
+                  <TXNCODE>CAW</TXNCODE>
+                  <NETTINGIND>N</NETTINGIND>
+                  <CHGGL>310008078</CHGGL>
+                  <TYPE>F</TYPE>
+                  <LCYCHG>0</LCYCHG>
+                  <XRATE>1</XRATE>
+               </Charge-Details>
+            </Transaction-Details>
+            <FCUBS_WARNING_RESP>
+               <WARNING>
+                  <WCODE>ST-SAVE-023</WCODE>
+                  <WDESC>Record Successfully Retrieved</WDESC>
+               </WARNING>
+            </FCUBS_WARNING_RESP>
+         </FCUBS_BODY>
+      </QUERYTRANSACTION_IOFS_RES>
+   </S:Body>
+</S:Envelope>';
+		DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') PARSE(myBlob);
+--		CREATE LASTCHILD OF OutputRoot DOMAIN('SOAP') PARSE(soapres CCSID 1208);
+	END;
+END MODULE;
+
+
+
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute3
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		 CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+	--	SET OutputRoot = InputRoot;
+	    DECLARE soapres CHARACTER ' {
+   "custAccNo": "1400161298613",
+   "customerName1": "NAOMI ADUTWUMWAA KYEI",
+   "branchCode": "012"
+}';
+	    DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('JSON') PARSE(myBlob);
+	
+	
+	 
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute4
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		 DECLARE soapres CHARACTER '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+   <S:Body>
+      <REVERSETRANSACTION_IOPK_RES xmlns="http://fcubs.ofss.com/service/FCUBSRTService">
+         <FCUBS_HEADER>
+            <SOURCE>FLEXCUBE</SOURCE>
+            <UBSCOMP>FCUBS</UBSCOMP>
+            <MSGID>9243590686483705</MSGID>
+            <CORRELID>99128207360178</CORRELID>
+            <USERID>GIPUSER</USERID>
+            <BRANCH>701</BRANCH>
+            <MODULEID>RT</MODULEID>
+            <SERVICE>FCUBSRTService</SERVICE>
+            <OPERATION>ReverseTransaction</OPERATION>
+            <SOURCE_USERID>GIPUSER</SOURCE_USERID>
+            <DESTINATION>GIP</DESTINATION>
+            <MULTITRIPID>6243590888420376</MULTITRIPID>
+            <FUNCTIONID>DEGRTTLR</FUNCTIONID>
+            <ACTION>REVERSE</ACTION>
+            <MSGSTAT>SUCCESS</MSGSTAT>
+         </FCUBS_HEADER>
+         <FCUBS_BODY>
+            <FCUBS_WARNING_RESP>
+               <WARNING>
+                  <WCODE>GW-REV-01</WCODE>
+                  <WDESC>Transaction Reversed Succesfully</WDESC>
+               </WARNING>
+            </FCUBS_WARNING_RESP>
+         </FCUBS_BODY>
+      </REVERSETRANSACTION_IOPK_RES>
+   </S:Body>
+</S:Envelope>';
+	    DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') PARSE(myBlob);
+	END;
+END MODULE;
+CREATE COMPUTE MODULE CBS_RTService_Simulator_MF_Compute5
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE soapres CHARACTER '<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+    <S:Body>
+        <ns2:GIPTransactionOpResponse xmlns:ns2="com.ghipss.gip">
+            <GIPTransactionResponse>
+                <Amount>000000000200</Amount>
+                <datetime>220719172647</datetime>
+                <TrackingNum>395725</TrackingNum>
+                <FunctionCode>111</FunctionCode>
+                <OrigineBank>300595</OrigineBank>
+                <DestBank>300315</DestBank>
+                <SessionID>071999695281</SessionID>
+                <ChannelCode>100</ChannelCode>
+                <NameToDebit>Hayford Owusu Brobbey</NameToDebit>
+                <AccountToDebit>0246089019</AccountToDebit>
+                <NameToCredit>ENOCH DANSO CLINTON</NameToCredit>
+                <AccountToCredit>0246089019000</AccountToCredit>
+                <Narration>test payment</Narration>
+                <OneTimePassword xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+                <ActCode>000</ActCode>
+                <AprvCode>000000</AprvCode>
+                <StatusQuery>000</StatusQuery>
+            </GIPTransactionResponse>
+        </ns2:GIPTransactionOpResponse>
+    </S:Body>
+</S:Envelope>';
+	    DECLARE myBlob BLOB CAST(soapres AS BLOB CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+   		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') PARSE(myBlob);
+	END;
+END MODULE;

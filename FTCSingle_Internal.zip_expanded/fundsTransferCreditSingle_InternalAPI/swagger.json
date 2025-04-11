@@ -1,0 +1,33 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "title" : "fundsTransferCreditSingle_InternalAPI",
+    "version" : "1.0.0",
+    "description" : "fundsTransferCreditSingle_InternalAPI"
+  },
+  "paths" : {
+    "/" : {
+      "post" : {
+        "operationId" : "internal",
+        "responses" : {
+          "200" : {
+            "description" : "The operation was successful."
+          }
+        },
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "description" : "Insert a POST",
+        "parameters" : [ {
+          "name" : "body",
+          "in" : "body",
+          "schema" : {
+            "type" : "string"
+          },
+          "description" : "The request body for the operation",
+          "required" : true
+        } ]
+      }
+    }
+  },
+  "basePath" : "/ftcsingle_inter"
+}

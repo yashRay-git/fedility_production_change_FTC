@@ -1,0 +1,746 @@
+
+PATH Fidelity_Bank_GhIPSS_Common, com.fidilitybank.co.zw.common.esql;
+DECLARE soapenv NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+DECLARE wsse NAMESPACE 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd';
+DECLARE wsu NAMESPACE 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-utility-1.0.xsd';
+DECLARE fcub NAMESPACE 'http://fcubs.ofss.com/service/FCUBSRTService';
+
+DECLARE ns NAMESPACE 'http://fcubs.ofss.com/service/FCUBSRTService';
+DECLARE S NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+--DECLARE xmlns NAMESPACE 'http://fcubs.ofss.com/service/FCUBSRTService';
+
+DECLARE CustInfoServiceReq EXTERNAL CHARACTER '';
+DECLARE CreateTransactionReq EXTERNAL CHARACTER '';
+DECLARE QueryTransactionReq EXTERNAL CHARACTER '';
+DECLARE GhIPSSReq EXTERNAL CHARACTER '' ;
+DECLARE ReverseRTServiceReq EXTERNAL CHARACTER '';
+DECLARE TSQueryReq EXTERNAL CHARACTER '';
+
+
+
+CREATE COMPUTE MODULE fundsTransferCredit_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN FALSE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		
+		
+		CREATE FIELD Environment.Values;
+		DECLARE envValRef REFERENCE TO Environment.Values;
+		SET envValRef.application_name = ApplicationLabel;
+		SET envValRef.ccsidRef = InputRoot.Properties.CodedCharSetId;
+		SET envValRef.encodeRef = InputRoot.Properties.Encoding;
+		SET envValRef.msgId = InputRoot.JSON.Data.channelRef;
+		
+		--Logging code Start
+		SET envValRef.logData = getCastedPayLoad(InputRoot.JSON,envValRef);
+		CALL prepareGhIPSSLogger('ChannelRequest',envValRef,OutputRoot);
+		--Logging code End
+		
+				
+		CREATE LASTCHILD OF Environment.Request NAME 'values';
+		CREATE LASTCHILD OF Environment.Inref DOMAIN('JSON');
+		CREATE LASTCHILD OF Environment.Inref.JSON NAME('Data');
+		DECLARE envRef REFERENCE TO Environment.Inref.JSON.Data;
+		SET envRef.operation = InputRoot.JSON.Data.operation ;
+		SET envRef.amount = InputRoot.JSON.Data.amount ;
+		SET envRef.destBankCode = InputRoot.JSON.Data.destBankCode ;
+		SET envRef.channelRef = InputRoot.JSON.Data.channelRef ;
+		SET envRef.userId = InputRoot.JSON.Data.userId ;
+		SET envRef.accountToDebit = InputRoot.JSON.Data.accountToDebit ;
+		SET envRef.nameToDebit = InputRoot.JSON.Data.nameToDebit ;
+		SET envRef.accountToCredit = InputRoot.JSON.Data.accountToCredit ;
+		SET envRef.nameToCredit = InputRoot.JSON.Data.nameToCredit ;
+		SET envRef.transactionDetail = InputRoot.JSON.Data.transactionDetail ;
+		
+		
+		
+		-- Start framing CustInfoServiceReq
+		SET OutputRoot.JSON.Data.operation = 'limiteddetail';
+		SET OutputRoot.JSON.Data.accountNo = InputRoot.JSON.Data.accountToDebit;
+		-- End framing CustInfoServiceReq
+
+         
+		--Logging code Start
+		SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+		CALL prepareGhIPSSLogger('CustInfoServiceReq',envValRef,OutputRoot);
+		--Logging code End
+		 
+
+		SET Environment.Request.values.requestFlag = 'CustInfoServiceReq';
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = CustInfoServiceReq;
+		PROPAGATE TO TERMINAL 'out1';
+         
+		DECLARE envCbsRes REFERENCE TO Environment.CbsRes.JSON.Data;
+      
+       --DBLogging code Start
+	    INSERT INTO cbs_transaction(
+	    
+	    MSGID, CORRELID, USERID, BRANCH, MSGSTAT,
+	    XREF, FCCREF, TXNACC, TXNAMT, TXNDATE,
+	    NARRATIVE, MAKERID, MAKERSTAMP, CHECKERSTAMP, ACCTITLE1,
+	    CHQNO, BENFNAME, BENFADDR1, ECODE, EDESC,
+	    WCODE, WDESC) VALUES (  
+	   
+	    NULL, -- MSGID
+	    NULL, -- CORRELID
+	    NULL, -- USERID
+	    envCbsRes.branchCode, -- BRANCH
+	    NULL,, -- MSGSTAT
+	    NULL, -- XREF
+	    NULL, -- FCCREF
+	    envCbsRes.custAccNo, -- TXNACC
+	    NULL, -- TXNAMT
+	    CURRENT_DATE, -- TXNDATE
+	    NULL, -- NARRATIVE
+	    NULL, -- MAKERID
+	    NULL, -- MAKERSTAMP
+	    NULL, -- CHECKERSTAMP
+	    envCbsRes.customerName1, -- ACCTITLE1
+	    NULL, -- CHQNO
+	    NULL, -- BENFNAME
+	    NULL, -- BENFADDR1
+	    NULL, -- ECODE
+	    NULL, -- EDESC
+	    NULL, -- WCODE
+	    NULL  -- WDESC 
+	    );
+	       
+       --DBLogging code end 
+     
+     
+		IF envCbsRes.custAccNo = '' THEN
+			SET OutputRoot.JSON.Data.channelRef = envRef.channelRef;
+			SET OutputRoot.JSON.Data.transactionStatus = 'Invalid account Account';
+		 	   
+			--Logging code Start
+			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+			CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
+			--Logging code End
+			 
+			
+			PROPAGATE TO TERMINAL 'out2';
+			RETURN;
+		ELSE
+			
+			-- Start framing CreateTransactionReq
+
+			DECLARE inputRef REFERENCE TO InputRoot.JSON.Data;
+			-- Create SOAP Envelope and Header
+			-- Create Envelope
+			CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope;
+			DECLARE soapEnvRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:soapenv = soapenv;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:ret = fcub;
+			-- Create Header with Security
+			CREATE FIELD soapEnvRef.soapenv:Header;
+			DECLARE soapEnvHeader REFERENCE TO soapEnvRef.soapenv:Header;
+			CREATE LASTCHILD OF soapEnvHeader.wsse:Security;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.NamespaceDecl)xmlns:wsse = wsse;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.Attribute)soapenv:mustUnderstand = '1';
+			CREATE LASTCHILD OF soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.NamespaceDecl)xmlns:wsu = wsu;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.Attribute)wsu:Id = 'UsernameToken-1';
+
+			DECLARE UsernameTokenRef REFERENCE TO soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET UsernameTokenRef.wsse:Username = 'esbtestuser';
+			SET UsernameTokenRef.wsse:Password.(XMLNSC.Attribute)Type = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText';
+			SET UsernameTokenRef.wsse:Password = 'fidelity,123';
+			SET UsernameTokenRef.wsse:Nonce.(XMLNSC.Attribute)EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary';
+			SET UsernameTokenRef.wsse:Nonce = 'PCamrOP55EQorWOZ8zOBHA==';
+			SET UsernameTokenRef.wsu:Created = CAST(CURRENT_GMTTIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z'''); --'2015-10-28T02:45:11.593Z';
+			-- Body creation
+			CREATE LASTCHILD OF soapEnvRef NAME 'soapenv:Body';
+			DECLARE bodyRef REFERENCE TO soapEnvRef."soapenv:Body";
+			-- Root request node
+			CREATE LASTCHILD OF bodyRef NAME 'ret:CREATETRANSACTION_FSFS_REQ';
+			DECLARE reqRef REFERENCE TO bodyRef."ret:CREATETRANSACTION_FSFS_REQ";
+			-- === FCUBS_HEADER ===
+			CREATE LASTCHILD OF reqRef NAME 'ret:FCUBS_HEADER';
+			DECLARE headerDataRef REFERENCE TO reqRef."ret:FCUBS_HEADER";
+			SET headerDataRef."ret:SOURCE" = 'GIP';
+			SET headerDataRef."ret:UBSCOMP" = 'FCUBS';
+			SET headerDataRef."ret:MSGID" =  envRef.channelRef;       --'MSG' || CAST(RAND() * 1000000000 AS CHARACTER); -- Auto-generated
+			SET headerDataRef."ret:CORRELID" = envRef.channelRef;  -- 'COR' || CAST(RAND() * 1000000000 AS CHARACTER); -- Auto-generated
+			SET headerDataRef."ret:USERID" = inputRef.userId;
+			SET headerDataRef."ret:BRANCH" = envCbsRes.branchCode; -- Should come from CustInfoService
+			SET headerDataRef."ret:MODULEID" = 'RT';
+			SET headerDataRef."ret:SERVICE" = 'FCUBSRTService';
+			SET headerDataRef."ret:OPERATION" = 'CreateTransaction';
+			SET headerDataRef."ret:SOURCE_OPERATION" = 'CreateTransaction';
+			SET headerDataRef."ret:SOURCE_USERID" = inputRef.userId;
+			-- === FCUBS_BODY ===
+			CREATE LASTCHILD OF reqRef NAME 'ret:FCUBS_BODY';
+			DECLARE bodyDataRef REFERENCE TO reqRef."ret:FCUBS_BODY";
+			-- Transaction-Details
+			CREATE LASTCHILD OF bodyDataRef NAME 'ret:Transaction-Details';
+			DECLARE txnRef REFERENCE TO bodyDataRef."ret:Transaction-Details";
+			SET txnRef."ret:XREF" = inputRef.channelRef;
+			SET txnRef."ret:PRD" = 'MS38';
+			SET txnRef."ret:BRN" = envCbsRes.branchCode; -- From CustInfoService
+			SET txnRef."ret:TXNBRN" = envCbsRes.branchCode; -- From CustInfoService
+			SET txnRef."ret:TXNACC" = inputRef.accountToDebit;
+			SET txnRef."ret:TXNCCY" = 'GHS';
+			SET txnRef."ret:TXNAMT" = inputRef.amount;
+			SET txnRef."ret:NARRATIVE" = inputRef.transactionDetail;
+			SET txnRef."ret:SCODE" = '300323';
+			-- Cheque-Details
+			CREATE LASTCHILD OF txnRef NAME 'ret:Cheque-Details';
+			DECLARE chqRef REFERENCE TO txnRef."ret:Cheque-Details";
+			SET chqRef."ret:SRNO" = '240101';
+			SET chqRef."ret:PAYBRN" = envCbsRes.branchCode; -- '701'; -- From CustInfoService
+			SET chqRef."ret:CHQNO" = inputRef.destBankCode;
+			SET chqRef."ret:EXPDT" = '9999-12-31';
+			SET chqRef."ret:BENFNAME" = inputRef.nameToCredit;
+			SET chqRef."ret:BENFADDR1" = inputRef.accountToCredit;
+			-- End framing CreateTransactionReq
+
+			SET Environment.Request.values.requestFlag = 'CreateTransactionReq';
+			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = CreateTransactionReq;
+			
+			--Logging code Start
+			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+			CALL prepareGhIPSSLogger('CreateTransactionReq',envValRef,OutputRoot);
+			--Logging code End
+			 
+			PROPAGATE TO TERMINAL 'out1';
+
+			DECLARE envCbsCTRes REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_HEADER.*:FCUBS_BODY.*:"Transaction-Details";
+			DECLARE envCbsCTRes_WARNING REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_HEADER.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.WARNING;
+           DECLARE txnDetailsRef REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_HEADER;
+            --DBLogging code Start
+            
+			    INSERT INTO cbs_transaction(
+			    
+			    MSGID, CORRELID, USERID, BRANCH, MSGSTAT,
+			    XREF, FCCREF, TXNACC, TXNAMT, TXNDATE,
+			    NARRATIVE, MAKERID, MAKERSTAMP, CHECKERSTAMP, ACCTITLE1,
+			    CHQNO, BENFNAME, BENFADDR1, ECODE, EDESC,
+			    WCODE, WDESC) VALUES (  
+			   
+			    txnDetailsRef.*:MSGID, -- MSGID
+			    txnDetailsRef.*:CORRELID, -- CORRELID
+			    txnDetailsRef.*:USERID, -- USERID 
+			    envCbsRes.branchCode, -- BRANCH
+			    txnDetailsRef.*:TXNACC, -- MSGSTAT
+			    envCbsCTRes.XREF, -- XREF
+			    envCbsCTRes.FCCREF, -- FCCREF
+			    envCbsRes.TXNACC, -- TXNACC
+			    envCbsRes.TXNACC, -- TXNAMT
+			    envCbsCTRes.TXNDATE, -- TXNDATE
+			    envCbsCTRes.NARRATIVE, -- NARRATIVE
+			    envCbsCTRes.MAKERID, -- MAKERID
+			    envCbsCTRes.MAKERSTAMP, -- MAKERSTAMP
+			    envCbsCTRes.CHECKERSTAMP, -- CHECKERSTAMP
+			    envCbsCTRes.envCbsCTRes, -- ACCTITLE1
+			    inputRef.destBankCode, -- CHQNO
+			    inputRef.nameToCredit, -- BENFNAME
+			    envCbsCTRes.*:"Cheque-Details".*:BENFADDR1, -- BENFADDR1
+			    envCbsCTRes_WARNING.*:ECODE, -- ECODE
+			    envCbsCTRes_WARNING.*:EDESC, -- EDESC
+			    envCbsCTRes_WARNING.*:WCODE, -- WCODE
+			    envCbsCTRes_WARNING.*:WDESC  -- WDESC 
+			    );
+	       
+       --DBLogging code end 
+     
+
+            
+			IF envCbsCTRes.*:MSGSTAT = '' THEN
+				-- Start framing QueryTransactionReq
+				-- Create Envelope
+				CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope;
+				DECLARE soapEnvRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope;
+				SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:soapenv = soapenv;
+				SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:fcub = fcub;
+				-- Create Header with Security
+				CREATE FIELD soapEnvRef.soapenv:Header;
+				DECLARE soapEnvHeader REFERENCE TO soapEnvRef.soapenv:Header;
+				CREATE LASTCHILD OF soapEnvHeader.wsse:Security;
+				SET soapEnvHeader.wsse:Security.(XMLNSC.NamespaceDecl)xmlns:wsse = wsse;
+				SET soapEnvHeader.wsse:Security.(XMLNSC.Attribute)soapenv:mustUnderstand = '1';
+				CREATE LASTCHILD OF soapEnvHeader.wsse:Security.wsse:UsernameToken;
+				SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.NamespaceDecl)xmlns:wsu = wsu;
+				SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.Attribute)wsu:Id = 'UsernameToken-1';
+
+				DECLARE UsernameTokenRef REFERENCE TO soapEnvHeader.wsse:Security.wsse:UsernameToken;
+				SET UsernameTokenRef.wsse:Username = 'esbtestuser';
+				SET UsernameTokenRef.wsse:Password.(XMLNSC.Attribute)Type = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText';
+				SET UsernameTokenRef.wsse:Password = 'fidelity,123';
+				SET UsernameTokenRef.wsse:Nonce.(XMLNSC.Attribute)EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary';
+				SET UsernameTokenRef.wsse:Nonce = 'PCamrOP55EQorWOZ8zOBHA==';
+				SET UsernameTokenRef.wsu:Created = CAST(CURRENT_GMTTIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z'''); --'2015-10-28T02:45:11.593Z';
+				-- Create Body and QUERYTRANSACTION_IOFS_REQ
+				CREATE LASTCHILD OF soapEnvRef.soapenv:Body.fcub:QUERYTRANSACTION_IOFS_REQ;
+				DECLARE reqRef REFERENCE TO soapEnvRef.soapenv:Body.fcub:QUERYTRANSACTION_IOFS_REQ;
+				-- FCUBS_HEADER
+				CREATE LASTCHILD OF reqRef.fcub:FCUBS_HEADER;
+				DECLARE headerRef REFERENCE TO reqRef.fcub:FCUBS_HEADER;
+				SET headerRef.fcub:SOURCE = 'GIP';
+				SET headerRef.fcub:UBSCOMP = 'FCUBS';
+				SET headerRef.fcub:MSGID = 'YW3152455211';
+				SET headerRef.fcub:CORRELID = 'YW3152455211';
+				SET headerRef.fcub:USERID = 'GIPUSER';
+				SET headerRef.fcub:BRANCH = '083';
+				SET headerRef.fcub:MODULEID = 'RT';
+				SET headerRef.fcub:SERVICE = 'FCUBSRTService';
+				SET headerRef.fcub:OPERATION = 'QueryTransaction';
+				SET headerRef.fcub:SOURCE_OPERATION = 'QueryTransaction';
+				SET headerRef.fcub:SOURCE_USERID = 'GIPUSER';
+				-- ADDL PARAM (Optional)
+
+				CREATE LASTCHILD OF headerRef.fcub:ADDL;
+				DECLARE addlRef REFERENCE TO headerRef.fcub:ADDL;
+				CREATE LASTCHILD OF addlRef.fcub:PARAM;
+				DECLARE paramRef REFERENCE TO addlRef.fcub:PARAM;
+				SET paramRef.fcub:NAME = 'SERVERSTAT';
+				SET paramRef.fcub:VALUE = 'HOST';
+				-- FCUBS_BODY with Transaction-Details-IO
+
+				CREATE LASTCHILD OF reqRef.fcub:FCUBS_BODY;
+				DECLARE bodyRef REFERENCE TO reqRef.fcub:FCUBS_BODY;
+
+				CREATE LASTCHILD OF bodyRef.fcub:"Transaction-Details-IO";
+				SET bodyRef.fcub:"Transaction-Details-IO".fcub:XREF = 'YD34761672'; -- Replace this with dynamic XREF if required
+				-- End framing QueryTransactionReq
+				SET Environment.Request.values.requestFlag = 'QueryTransactionReq';
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = QueryTransactionReq;
+				
+				--Logging code Start
+			    SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+		      	CALL prepareGhIPSSLogger('QueryTransactionReq',envValRef,OutputRoot);
+			    --Logging code End
+			    
+				PROPAGATE TO TERMINAL 'out1';
+
+
+			ELSEIF envCbsCTRes.*:MSGSTAT = 'SUCCESS' THEN
+
+				CALL GhIPSSReqCall();
+			END IF;
+
+
+
+			DECLARE envCbsQTRes REFERENCE TO Environment.CbsQTRes.XMLNSC.*:Envelope.*:Body.*:QUERYTRANSACTION_IOFS_RES;
+            DECLARE envCbsQThead REFERENCE TO envCbsQTRes.*:FCUBS_HEADER;
+            DECLARE envCbsQbody REFERENCE TO envCbsQTRes.*:FCUBS_BODY;
+            
+           --DBLogging code Start
+            
+			    INSERT INTO cbs_transaction(
+			    
+			    MSGID, CORRELID, USERID, BRANCH, MSGSTAT,
+			    XREF, FCCREF, TXNACC, TXNAMT, TXNDATE,
+			    NARRATIVE, MAKERID, MAKERSTAMP, CHECKERSTAMP, ACCTITLE1,
+			    CHQNO, BENFNAME,BENFADDR1 , ECODE, EDESC,
+			    WCODE, WDESC) VALUES (  
+			   
+			   envCbsQThead.*:MSGID, -- MSGID
+			   envCbsQThead.*:CORRELID, -- CORRELID
+			   envCbsQThead.*:USERID, -- USERID 
+		   	   envCbsQThead.*:branchCode, -- BRANCH
+			   envCbsQThead.*:TXNACC, -- MSGSTAT
+			   envCbsQbody.*:XREF, -- XREF
+			   envCbsQbody.*:FCCREF, -- FCCREF
+			   envCbsQbody.*:TXNACC, -- TXNACC
+			   envCbsQbody.*:TXNAMT, -- TXNAMT
+			   envCbsQbody.*:TXNDATE, -- TXNDATE
+			   envCbsQbody.*:NARRATIVE, -- NARRATIVE
+			   envCbsQbody.*:MAKERID, -- MAKERID
+			   envCbsQbody.*:MAKERSTAMP, -- MAKERSTAMP
+			   envCbsQbody.*:CHECKERSTAMP, -- CHECKERSTAMP
+			   envCbsQbody.*:ACCTITLE1, -- ACCTITLE1
+			    NULL, -- CHQNO
+			    NULL, -- BENFNAME
+			    NULL, -- BENFADDR1
+			    envCbsQTRes.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE, -- ECODE
+			    envCbsQTRes.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:EDESC, -- EDESC
+			    envCbsQTRes.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:WCODE, -- WCODE
+			    envCbsQTRes.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:WDESC  -- WDESC 
+			    );
+	       
+       --DBLogging code end 
+
+
+
+			IF envCbsQTRes.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE = 'WB-TXN-001' THEN
+				-- Start framming Channel Responce
+				SET OutputRoot.JSON.Data.channelRef = envRef.channelRef;
+				SET OutputRoot.JSON.Data.transactionStatus = 'Transaction has timeout, please try again';
+				-- End framming Channel Responce
+				PROPAGATE TO TERMINAL 'out2';
+				RETURN;
+			ELSEIF envCbsQTRes.*:FCUBS_HEADER.*:MSGSTAT = 'SUCCESS' THEN
+
+				CALL GhIPSSReqCall();
+			END IF;
+		END IF;
+	END;
+
+	CREATE PROCEDURE GhIPSSReqCall() BEGIN
+		
+		
+		CREATE FIELD Environment.Values;
+		DECLARE envValRef REFERENCE TO Environment.Values;
+		SET envValRef.application_name = ApplicationLabel;
+		SET envValRef.ccsidRef = InputRoot.Properties.CodedCharSetId;
+		SET envValRef.encodeRef = InputRoot.Properties.Encoding;
+		SET envValRef.msgId = InputRoot.JSON.Data.channelRef;
+		
+		-- Start framing GhIPSSReq
+		DECLARE currentTime CHARACTER;
+		DECLARE amountFormatted CHARACTER;
+		DECLARE debitName CHARACTER ;
+		DECLARE amountref REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details";
+		-- Format Amount (12-digit with leading zeros)
+		SET amountFormatted = RIGHT('000000000000' ||  CAST(CAST(CAST(amountref.*:TXNAMT AS DECIMAL) * 100 AS INTEGER) AS CHARACTER), 12); --RIGHT('000000000000' || CAST(amountref.*:TXNAMT AS CHARACTER), 12);
+		-- Get current timestamp in YYMMDDHHMMSS
+		SET currentTime = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyMMddHHmmss');
+		-- Generate 6-digit tracking number 
+		DECLARE trackingNum INTEGER;
+		DECLARE trackingNumStr CHARACTER;
+		-- Generate a random number between 0 and 999999
+		SET trackingNum = CAST(RAND() * 999999 AS INTEGER);
+		-- Format the number to 6 digits with leading zeros
+		SET trackingNumStr = RIGHT('000000' || CAST(trackingNum AS CHARACTER), 6);
+	
+	
+		-- Clean and trim NameToDebit (ACCTITLE1)
+		-- SET debitName = TRIM(TRAILING FROM TRIM(LEADING FROM
+		-- REPLACE(REPLACE(REPLACE(REPLACE(
+		-- COALESCE(InputRoot.XMLNSC.CREATETRANSACTION_FSFS_RES.FCUBS_BODY."Transaction-Details".ACCTITLE1, ''),
+		-- '&', ' '), '<', ' '), '>', ' '), ',', ' ')
+		-- ));
+		--
+	
+		SET debitName = LEFT(debitName, 50); -- Limit to 50 chars
+		-- Build SOAP structure
+		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC') NAME 'soapenv:Envelope';
+		CREATE LASTCHILD OF OutputRoot.XMLNSC."soapenv:Envelope" NAME 'soapenv:Body';
+		CREATE LASTCHILD OF OutputRoot.XMLNSC."soapenv:Envelope"."soapenv:Body" NAME 'com:GIPTransactionOp';
+		CREATE LASTCHILD OF OutputRoot.XMLNSC."soapenv:Envelope"."soapenv:Body"."com:GIPTransactionOp" NAME 'ReqGIPTransaction';
+		-- Map Fields
+		DECLARE ghipsreq REFERENCE TO OutputRoot.XMLNSC."soapenv:Envelope"."soapenv:Body"."com:GIPTransactionOp".ReqGIPTransaction;
+
+		SET ghipsreq.Amount = amountFormatted;
+		SET ghipsreq.datetime = currentTime;
+		SET ghipsreq.TrackingNum = trackingNumStr;
+		SET ghipsreq.FunctionCode = '240';
+		SET ghipsreq.OrigineBank = '300323';
+		SET ghipsreq.DestBank = '300323';
+		SET ghipsreq.SessionID = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:XREF;
+		SET ghipsreq.ChannelCode = '100';
+		SET ghipsreq.AccountToDebit = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:TXNACC;
+		SET ghipsreq.NameToDebit = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:ACCTITLE1;
+		SET ghipsreq.AccountToCredit = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:"Cheque-Details".*:BENFADDR1;
+		SET ghipsreq.NameToCredit = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:"Cheque-Details".*:BENFNAME;
+		SET ghipsreq.Narration = Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details".*:NARRATIVE;
+		SET ghipsreq.Login = '300323';
+		SET ghipsreq.Password = '3104b15a6e5e57ee5663f64e6a1fb0d940d7824c875e42d35f9a30a72';
+		-- End framing GhIPSSReq
+       
+        --Logging code Start
+	    SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+	    CALL prepareGhIPSSLogger('GhIPSSReq',envValRef,OutputRoot);
+	    --Logging code End
+        
+		SET Environment.Request.values.requestFlag = 'GhIPSSReq';
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = GhIPSSReq;
+		PROPAGATE TO TERMINAL 'out1';
+
+		DECLARE envGhipssRes REFERENCE TO Environment.GhipssRes.XMLNSC.*:Envelope.*:Body.*:GIPTransactionOpResponse.*:GIPTransactionResponse;
+   
+   
+   
+   
+     
+
+		IF envGhipssRes.ActCode = '000' THEN
+			CREATE LASTCHILD OF OutputRoot DOMAIN('JSON');
+			CREATE LASTCHILD OF OutputRoot.JSON NAME 'Data';
+			DECLARE outRef REFERENCE TO OutputRoot.JSON.Data;
+			DECLARE InGIP REFERENCE TO Environment.GhipssRes.XMLNSC.*:Envelope.*:Body.*:GIPTransactionOpResponse.*:GIPTransactionResponse;
+
+			SET outRef.channelRef = InGIP.SessionID ;
+			SET outRef.amount = InGIP.Amount ;
+			SET outRef.accountToCredit = InGIP.NameToCredit ;
+			SET outRef.nameToCredit = InGIP.AccountToCredit ;
+			SET outRef.transactionDetails = InGIP.Narration ;
+			SET outRef.actCode = InGIP.ActCode ;
+			SET outRef.aprvCode = InGIP.ActCode ;
+			--Logging code Start
+	        SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+	        CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
+	        --Logging code End
+			
+			PROPAGATE TO TERMINAL 'out2';
+			RETURN;
+		ELSEIF envGhipssRes.ActCode = '100' OR envGhipssRes.ActCode = '381' THEN
+			--Start framing ReverseRTServiceReq
+
+			DECLARE soapenv CHARACTER 'http://schemas.xmlsoap.org/soap/envelope/';
+			DECLARE fcub CHARACTER 'http://fcubs.ofss.com/service/FCUBSRTService';
+			DECLARE wsse CHARACTER 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd';
+			DECLARE wsu CHARACTER 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd';
+
+
+			DECLARE envRTfccRef REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:"Transaction-Details";
+			DECLARE envRTuserRef REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_HEADER;
+
+
+
+			DECLARE vUserId CHARACTER envRTuserRef.*:USERID;
+
+			DECLARE vMsgId CHARACTER RIGHT(CAST( RAND()  AS CHARACTER), 18); -- You can customize this generator
+			DECLARE vCorrelId CHARACTER vMsgId;
+			-- Create Envelope
+			CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope;
+			DECLARE soapEnvRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:soapenv = soapenv;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:fcub = fcub;
+			-- Create Header with Security
+			CREATE FIELD soapEnvRef.soapenv:Header;
+			DECLARE soapEnvHeader REFERENCE TO soapEnvRef.soapenv:Header;
+			CREATE FIELD soapEnvHeader.wsse:Security;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.NamespaceDecl)xmlns:wsse = wsse;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.Attribute)soapenv:mustUnderstand = '1';
+
+			CREATE FIELD soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.NamespaceDecl)xmlns:wsu = wsu;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.Attribute)wsu:Id = 'UsernameToken-1';
+
+			DECLARE UsernameTokenRef REFERENCE TO soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET UsernameTokenRef.wsse:Username = 'esbtestuser';
+			SET UsernameTokenRef.wsse:Password.(XMLNSC.Attribute)Type = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText';
+			SET UsernameTokenRef.wsse:Password = 'fidelity,123';
+			SET UsernameTokenRef.wsse:Nonce.(XMLNSC.Attribute)EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary';
+			SET UsernameTokenRef.wsse:Nonce = 'PCamrOP55EQorWOZ8zOBHA==';
+			SET UsernameTokenRef.wsu:Created = CAST(CURRENT_GMTTIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''');
+			-- Create Body
+			CREATE FIELD soapEnvRef.soapenv:Body;
+			DECLARE soapBody REFERENCE TO soapEnvRef.soapenv:Body;
+			CREATE FIELD soapBody.fcub:REVERSETRANSACTION_IOPK_REQ;
+			-- FCUBS_HEADER
+			DECLARE reqRef REFERENCE TO soapBody.fcub:REVERSETRANSACTION_IOPK_REQ;
+			CREATE FIELD reqRef.fcub:FCUBS_HEADER;
+
+			SET reqRef.fcub:FCUBS_HEADER.fcub:SOURCE = 'GIP';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:UBSCOMP = 'FCUBS';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:MSGID = vMsgId; -- 18 char max
+			SET reqRef.fcub:FCUBS_HEADER.fcub:CORRELID = vCorrelId; -- 18 char max
+			SET reqRef.fcub:FCUBS_HEADER.fcub:USERID = vUserId;
+			SET reqRef.fcub:FCUBS_HEADER.fcub:BRANCH = LEFT(envRTfccRef.*:FCCREF, 3); -- First 3 of FCCREF
+			SET reqRef.fcub:FCUBS_HEADER.fcub:MODULEID = 'RT';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:SERVICE = 'FCUBSRTService';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:OPERATION = 'ReverseTransaction';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:SOURCE_OPERATION = 'ReverseTransaction';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:SOURCE_USERID = vUserId;
+			-- FCUBS_HEADER.ADDL.PARAM
+			CREATE FIELD reqRef.fcub:FCUBS_HEADER.fcub:ADDL;
+			CREATE FIELD reqRef.fcub:FCUBS_HEADER.fcub:ADDL.fcub:PARAM;
+			SET reqRef.fcub:FCUBS_HEADER.fcub:ADDL.fcub:PARAM.fcub:NAME = 'SERVERSTAT';
+			SET reqRef.fcub:FCUBS_HEADER.fcub:ADDL.fcub:PARAM.fcub:VALUE = 'HOST';
+			-- FCUBS_BODY.Transaction-Details-IO
+			CREATE FIELD reqRef.fcub:FCUBS_BODY;
+			CREATE FIELD reqRef.fcub:FCUBS_BODY.fcub:"Transaction-Details-IO";
+			SET reqRef.fcub:FCUBS_BODY.fcub:"Transaction-Details-IO".fcub:FCCREF = envRTfccRef.*:FCCREF;
+			--End framing ReverseRTServiceReq
+
+			SET Environment.Request.values.requestFlag = 'ReverseRTServiceReq';
+			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = ReverseRTServiceReq;
+			
+			--Logging code Start
+	        SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+	        CALL prepareGhIPSSLogger('ReverseRTServiceReq',envValRef,OutputRoot);
+	        --Logging code End
+			
+			PROPAGATE TO TERMINAL 'out1';
+
+			DECLARE envReverseRTServiceReq REFERENCE TO Environment.ReverseRTServiceReq.XMLNSC.*:Envelope.*:Body.*:REVERSETRANSACTION_IOPK_RES;
+            DECLARE envRevRTReqHead REFERENCE TO envReverseRTServiceReq.*:FCUBS_HEADER;
+            DECLARE envRevRTReqbody REFERENCE TO envCbsQTRes.*:FCUBS_BODY;
+            
+           --DBLogging code Start
+            
+			    INSERT INTO cbs_transaction(
+			    
+			    MSGID, CORRELID, USERID, BRANCH, MSGSTAT,
+			    XREF, FCCREF, TXNACC, TXNAMT, TXNDATE,
+			    NARRATIVE, MAKERID, MAKERSTAMP, CHECKERSTAMP, ACCTITLE1,
+			    CHQNO, BENFNAME,BENFADDR1 , ECODE, EDESC,
+			    WCODE, WDESC) VALUES (  
+			   
+			   envRevRTReqHead.*:MSGID, -- MSGID
+			   envRevRTReqHead.*:CORRELID, -- CORRELID
+			   envRevRTReqHead.*:USERID, -- USERID 
+		   	   reqRef.*:fcub.*:FCUBS_HEADER.*:fcub.*:BRANCH, -- BRANCH
+			   envRevRTReqHead.*:MSGSTAT, -- MSGSTAT
+			   Null, -- XREF
+			   reqRef.*:fcub.*:FCUBS_BODY.*:fcub.*:"Transaction-Details-IO".fcub.*:FCCREF, -- FCCREF
+			    NULL, -- TXNACC
+			    NULL, -- TXNAMT
+			    NULL, -- TXNDATE
+			    NULL, -- NARRATIVE
+			    NULL, -- MAKERID
+			    NULL, -- MAKERSTAMP
+			    NULL, -- CHECKERSTAMP
+			    NULL, -- ACCTITLE1
+			    NULL, -- CHQNO
+			    NULL, -- BENFNAME
+			    NULL, -- BENFADDR1
+			    envRevRTReqbody.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE, -- ECODE
+			    envRevRTReqbody.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:EDESC, -- EDESC
+			    envRevRTReqbody.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:WCODE, -- WCODE
+			    envRevRTReqbody.*:FCUBS_WARNING_RESP.*:WARNING.*:ECODE.*:WDESC  -- WDESC 
+			    );
+	       
+       --DBLogging code end 
+            
+
+
+			IF envReverseRTServiceReq.*:MSGSTAT = 'SUCCESS' THEN
+				SET OutputRoot.JSON.Data.transactionStatus = 'Transaction has failed, please try again';
+				PROPAGATE TO TERMINAL 'out2';
+			    RETURN;
+			   
+			ELSEIF envReverseRTServiceReq.*:MSGSTAT = 'FAILURE' THEN
+				SET OutputRoot.JSON.Data.transactionStatus = 'Contact the customer care team';
+				PROPAGATE TO TERMINAL 'out2';
+	            RETURN;
+				
+			END IF;
+
+		ELSEIF envGhipssRes.ActCode = '909' OR envGhipssRes.ActCode = '912' OR envGhipssRes.ActCode = NULL OR envGhipssRes.ActCode = '990' OR envGhipssRes.ActCode = '911' OR envGhipssRes.ActCode = 'timeouts' THEN
+			--Start framing TSQueryReq
+
+			DECLARE soapenv NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+			DECLARE wsse NAMESPACE 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd';
+			DECLARE wsu NAMESPACE 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd';
+			DECLARE fcub NAMESPACE 'http://www.oracle.com/flexcube/common';
+
+
+           
+
+			CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope;
+			DECLARE soapEnvRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:soapenv = soapenv;
+			SET soapEnvRef.(XMLNSC.NamespaceDecl)xmlns:fcub = fcub;
+			-- Create Header with Security
+			CREATE FIELD soapEnvRef.soapenv:Header;
+			DECLARE soapEnvHeader REFERENCE TO soapEnvRef.soapenv:Header;
+			CREATE FIELD soapEnvHeader.wsse:Security;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.NamespaceDecl)xmlns:wsse = wsse;
+			SET soapEnvHeader.wsse:Security.(XMLNSC.Attribute)soapenv:mustUnderstand = '1';
+
+			CREATE FIELD soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.NamespaceDecl)xmlns:wsu = wsu;
+			SET soapEnvHeader.wsse:Security.wsse:UsernameToken.(XMLNSC.Attribute)wsu:Id = 'UsernameToken-1';
+
+			DECLARE UsernameTokenRef REFERENCE TO soapEnvHeader.wsse:Security.wsse:UsernameToken;
+			SET UsernameTokenRef.wsse:Username = 'esbtestuser';
+			SET UsernameTokenRef.wsse:Password.(XMLNSC.Attribute)Type = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText';
+			SET UsernameTokenRef.wsse:Password = 'fidelity,123';
+			SET UsernameTokenRef.wsse:Nonce.(XMLNSC.Attribute)EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary';
+			SET UsernameTokenRef.wsse:Nonce = 'PCamrOP55EQorWOZ8zOBHA==';
+			SET UsernameTokenRef.wsu:Created = CAST(CURRENT_GMTTIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''');--'2015-10-28T02:45:11.593Z';
+			-- Create Body
+			CREATE FIELD soapEnvRef.soapenv:Body;
+			DECLARE soapEnvBody REFERENCE TO soapEnvRef.soapenv:Body;
+			-- Create GIPTransactionOp inside Body
+			CREATE FIELD soapEnvBody."com:GIPTransactionOp";
+			DECLARE transOpRef REFERENCE TO soapEnvBody."com:GIPTransactionOp";
+			SET transOpRef.(XMLNSC.NamespaceDecl)xmlns:com = 'com.ghipss.gip';
+			-- Create ReqGIPTransaction
+			CREATE FIELD transOpRef.ReqGIPTransaction;
+			DECLARE reqRef REFERENCE TO transOpRef.ReqGIPTransaction;
+			-- Set required fields
+			SET reqRef.Amount = envGhipssRes.Amount;
+			SET reqRef.datetime = envGhipssRes.datetime;
+			SET reqRef.TrackingNum = envGhipssRes.TrackingNum;
+			SET reqRef.FunctionCode = '111';
+			SET reqRef.OrigineBank = envGhipssRes.OrigineBank;
+			SET reqRef.DestBank = envGhipssRes.DestBank;
+			SET reqRef.SessionID = envGhipssRes.SessionID;
+			SET reqRef.ChannelCode = ghipsreq.ChannelCode;
+			SET reqRef.NameToDebit =  envGhipssRes.NameToDebit;
+			SET reqRef.AccountToDebit =  envGhipssRes.AccountToDebit;
+			SET reqRef.NameToCredit =  envGhipssRes.NameToCredit;
+			SET reqRef.AccountToCredit =  envGhipssRes.AccountToCredit;
+			SET reqRef.Narration = envGhipssRes.Narration;
+			SET reqRef.Login = '300323';
+			SET reqRef.Password = 'c941a4ec7bd7937a58c1e6aae3dd50160dcc14d6f10c754041d7b74f9a84d2';
+			--End framing TSQueryReq
+
+			SET Environment.Request.values.requestFlag = 'TSQueryReq';
+			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = TSQueryReq;
+			
+			--Logging code Start
+	        SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+	        CALL prepareGhIPSSLogger('TSQueryReq',envValRef,OutputRoot);
+	        --Logging code End
+			
+			
+			
+			PROPAGATE TO TERMINAL 'out1';
+			-- Declare references to parse the SOAP response
+			
+			DECLARE envTSQueryReq REFERENCE TO Environment.TSQueryReq.XMLNSC.*:Envelope.*:Body.*:GIPTransactionOpResponse.*:GIPTransactionResponse;
+			-- Declare variables
+            
+
+
+			IF envTSQueryReq.*:ActCode = '000' OR envTSQueryReq.*:StatusQuery = '000' THEN
+				-- Build Output JSON response
+				
+			    CREATE LASTCHILD OF OutputRoot DOMAIN('JSON');
+			    CREATE LASTCHILD OF OutputRoot.JSON NAME 'Data';
+				SET OutputRoot.JSON.Data.channelRef = '101900166252';
+				SET OutputRoot.JSON.Data.amount = '50';
+				SET OutputRoot.JSON.Data.accountToCredit = envTSQueryReq.AccountToCredit;
+				SET OutputRoot.JSON.Data.nameToCredit = envTSQueryReq.NameToCredit;
+				SET OutputRoot.JSON.Data.transactionDetail = 'GIP PAYMENT FOR GOODS';
+				SET OutputRoot.JSON.Data.statusCode = envTSQueryReq.*:StatusQuery;
+				SET OutputRoot.JSON.Data.aprvCode = envTSQueryReq.*:AprvCode;
+               PROPAGATE TO TERMINAL 'out2';
+			   RETURN;
+
+			ELSEIF envTSQueryReq.*:ActCode <> '000' OR envTSQueryReq.*:StatusQuery <> '000' THEN
+				SET OutputRoot.JSON.Data.transactionStatus='Contact the customer care team';
+				PROPAGATE TO TERMINAL 'out2';
+			    RETURN;
+			END IF;
+
+
+		END IF;
+
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE fundstransfercredit_Res
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+
+	END;
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE envRef REFERENCE TO Environment.Request.values;
+
+		IF envRef.requestFlag = 'CustInfoServiceReq' THEN
+			CREATE LASTCHILD OF Environment.CbsRes DOMAIN('JSON') PARSE(InputRoot.BLOB.BLOB CCSID InputRoot.Properties.CodedCharSetId);
+		ELSEIF envRef.requestFlag = 'CreateTransactionReq' THEN
+			CREATE LASTCHILD OF Environment.CbsCTRes DOMAIN('XMLNSC') PARSE(InputRoot.BLOB.BLOB);
+		ELSEIF envRef.requestFlag = 'QueryTransactionReq' THEN
+			CREATE LASTCHILD OF Environment.CbsQTRes DOMAIN('XMLNSC') PARSE(InputRoot.BLOB.BLOB CCSID InputRoot.Properties.CodedCharSetId);
+		ELSEIF envRef.requestFlag = 'GhIPSSReq' THEN
+			CREATE LASTCHILD OF Environment.GhipssRes DOMAIN('XMLNSC') PARSE(InputRoot.BLOB.BLOB CCSID InputRoot.Properties.CodedCharSetId);
+		ELSEIF envRef.requestFlag = 'ReverseRTServiceReq' THEN
+			CREATE LASTCHILD OF Environment.ReverseRTServiceReq DOMAIN('XMLNSC') PARSE(InputRoot.BLOB.BLOB CCSID InputRoot.Properties.CodedCharSetId);
+		ELSEIF envRef.requestFlag = 'TSQueryReq' THEN
+			CREATE LASTCHILD OF Environment.TSQueryReq DOMAIN('XMLNSC') PARSE(InputRoot.BLOB.BLOB CCSID InputRoot.Properties.CodedCharSetId);
+		END IF;
+	END;
+END MODULE;

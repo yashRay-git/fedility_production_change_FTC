@@ -1,0 +1,45 @@
+BROKER SCHEMA com.fidilitybank.co.zw.dblogging
+PATH com.fidilitybank.co.zw.common.esql;
+CREATE DATABASE MODULE Fidelity_Bank_Errror_DB_Logging_App_NewEsql
+	DECLARE DBDSN EXTERNAL CHARACTER '';
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE rc BOOLEAN FALSE;
+		CALL initLog4j(LOG_CONFIG_PATH) INTO rc;
+		DECLARE ErrorAuidt_InsrtQuery,loggingData CHARACTER;
+		DECLARE ccidRef INTEGER Root.Properties.CodedCharSetId;
+		DECLARE encodeRef INTEGER Root.Properties.Encoding;
+		DECLARE inRef REFERENCE TO Root.XMLNSC.errlogData;
+		CALL writeToLogFile(MessageFlowLabel, 'ErrorLogger', 'ERRORLOGGING','.........................') INTO rc;
+		CALL writeToLogFile(MessageFlowLabel, 'ErrorLogger', 'ERROR',inRef.payLoad) INTO rc;
+
+		SET ErrorAuidt_InsrtQuery = 'Insert into ERROR_AUDIT_LOGGING(
+									MSGID,
+									LOGGING_TIME,
+									MESSAGETYPE,
+									APPNAME,
+									BROKER,
+									TIME_LOCAL_TRANSACTION,
+									DATE_LOCAL_TRANSACTION,
+									RETRIEVAL_REFERENCE_NUMBER,
+									BORKER_ERROR_CODE,
+									USER_DEFINE_ERROR_CODE,
+									MESSAGE,
+									ERRORDESCRIPTION) values (?,?,?,?,?,?,?,?,?,?,?,?)';
+
+		SET Environment.InsertErrorData = PASSTHRU(ErrorAuidt_InsrtQuery TO Database.{DBDSN} VALUES (
+											inRef.msgId,
+											CAST(CURRENT_TIMESTAMP AS TIMESTAMP FORMAT 'DD-MON-RR HH.MI.SSXFF AM'),
+											COALESCE(inRef.msgType,'Exception'),
+											inRef.serviceName,
+											BrokerName,
+											CURRENT_TIME, --Inpref.TIME_LOCAL_TRANSACTION,
+											CURRENT_DATE, --Inpref.DATE_LOCAL_TRANSACTION,
+											'NULL',
+											inRef.errorCode,
+											'NULL',
+											inRef.payLoad,
+											inRef.errordescription));
+		RETURN TRUE;
+	END;
+END MODULE;
