@@ -35,8 +35,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 		SET envValRef.encodeRef = InputRoot.Properties.Encoding;
 		SET envValRef.msgId = InputRoot.JSON.Data.channelRef;
 		--Logging code Start
-		SET envValRef.logData = getCastedPayLoad(InputRoot.JSON,envValRef);
-		CALL prepareGhIPSSLogger('ChannelRequest',envValRef,OutputRoot);
+--		SET envValRef.logData = getCastedPayLoad(InputRoot.JSON,envValRef);
+--		CALL prepareGhIPSSLogger('ChannelRequest',envValRef,OutputRoot);
 		--Logging code End
 
 
@@ -59,8 +59,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 		SET OutputRoot.JSON.Data.accountNo = InputRoot.JSON.Data.accountToDebit;
 		-- End framing CustInfoServiceReq
 		--Logging code Start
-		SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-		CALL prepareGhIPSSLogger('CustInfoServiceReq',envValRef,OutputRoot);
+--		SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--		CALL prepareGhIPSSLogger('CustInfoServiceReq',envValRef,OutputRoot);
 		--Logging code End
 
 
@@ -124,11 +124,10 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET OutputRoot.JSON.Data.channelRef = envRef.channelRef;
 			SET OutputRoot.JSON.Data.transactionStatus = 'Invalid account Account';
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
 			--Logging code End
-			--DBLogging Update code
-			--DBlogging Update code
+		
 
 
 			PROPAGATE TO TERMINAL 'out2';
@@ -137,7 +136,7 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			-- Start framing CreateTransactionReq
 
 			DECLARE inputRef REFERENCE TO InputRoot.JSON.Data;
-			-- Create SOAP Envelope and Header
+			
 			-- Create Envelope
 			CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope;
 			DECLARE soapEnvRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope;
@@ -160,13 +159,13 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET UsernameTokenRef.wsse:Nonce.(XMLNSC.Attribute)EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary';
 			SET UsernameTokenRef.wsse:Nonce = Nonce; -- 'PCamrOP55EQorWOZ8zOBHA==';
 			SET UsernameTokenRef.wsu:Created = CAST(CURRENT_GMTTIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z'''); --'2015-10-28T02:45:11.593Z';
-			-- Body creation
+		
 			CREATE LASTCHILD OF soapEnvRef NAME 'soapenv:Body';
 			DECLARE bodyRef REFERENCE TO soapEnvRef."soapenv:Body";
-			-- Root request node
+			--
 			CREATE LASTCHILD OF bodyRef NAME 'ret:CREATETRANSACTION_FSFS_REQ';
 			DECLARE reqRef REFERENCE TO bodyRef."ret:CREATETRANSACTION_FSFS_REQ";
-			-- === FCUBS_HEADER ===
+			--  FCUBS_HEADER 
 			CREATE LASTCHILD OF reqRef NAME 'ret:FCUBS_HEADER';
 			DECLARE headerDataRef REFERENCE TO reqRef."ret:FCUBS_HEADER";
 			SET headerDataRef."ret:SOURCE" = SOURCE; --'GIP';
@@ -180,10 +179,10 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET headerDataRef."ret:OPERATION" = CreateOperation;
 			SET headerDataRef."ret:SOURCE_OPERATION" = CreateOperation;
 			SET headerDataRef."ret:SOURCE_USERID" = inputRef.userId;
-			-- === FCUBS_BODY ===
+			-- FCUBS_BODY
 			CREATE LASTCHILD OF reqRef NAME 'ret:FCUBS_BODY';
 			DECLARE bodyDataRef REFERENCE TO reqRef."ret:FCUBS_BODY";
-			-- Transaction-Details
+			-- Transaction
 			CREATE LASTCHILD OF bodyDataRef NAME 'ret:Transaction-Details';
 			DECLARE txnRef REFERENCE TO bodyDataRef."ret:Transaction-Details";
 			SET txnRef."ret:XREF" = inputRef.channelRef;
@@ -204,13 +203,13 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET chqRef."ret:EXPDT" = '9999-12-31';
 			SET chqRef."ret:BENFNAME" = inputRef.nameToCredit;
 			SET chqRef."ret:BENFADDR1" = inputRef.accountToCredit;
-			-- End framing CreateTransactionReq
+			-- End  CreateTransactionReq
 
 			SET Environment.Request.values.requestFlag = 'CreateTransactionReq';
 			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = CreateTransactionReq;
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('CreateTransactionReq',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('CreateTransactionReq',envValRef,OutputRoot);
 			--Logging code End
 
 
@@ -220,6 +219,7 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			DECLARE envCbsCTRes_WARNING REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_BODY.*:FCUBS_WARNING_RESP.*:WARNING;
 			DECLARE txnDetailsRef REFERENCE TO Environment.CbsCTRes.XMLNSC.*:Envelope.*:Body.*:CREATETRANSACTION_FSFS_RES.*:FCUBS_HEADER;
 			--DBLogging UPDATE code Start
+		     DECLARE statusCode,statusDesc CHARACTER;
 
 			IF FIELDNAME(envCbsCTRes_WARNING)IS NOT NULL THEN
 				SET statusCode = envCbsCTRes_WARNING.*:WCODE;
@@ -304,8 +304,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET Environment.Request.values.requestFlag = 'QueryTransactionReq';
 			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = QueryTransactionReq;
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('QueryTransactionReq',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('QueryTransactionReq',envValRef,OutputRoot);
 			--Logging code End
 
 			PROPAGATE TO TERMINAL 'out1';
@@ -335,10 +335,10 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 		UPDATE Database.CBS_TRANSACTION AS p
 			SET
 			MSGSTAT = txnDetailsRef.*:MSGSTAT,
-			FCCREF= envCbsCTRes.*:FCCREF, -- FCCREF
-			MAKERID= envCbsCTRes.*:MAKERID, -- MAKERID
-			MAKERSTAMP= envCbsCTRes.*:MAKERSTAMP, -- MAKERSTAMP
-			CHECKERSTAMP= envCbsCTRes.*:CHECKERSTAMP, -- CHECKERSTAMP
+			FCCREF= envCbsQbody.*:FCCREF, -- FCCREF
+			MAKERID= envCbsQbody.*:MAKERID, -- MAKERID
+			MAKERSTAMP= envCbsQbody.*:MAKERSTAMP, -- MAKERSTAMP
+			CHECKERSTAMP= envCbsQbody.*:CHECKERSTAMP, -- CHECKERSTAMP
 			QT_STATUS = statusCode,
 			QT_STATUSDESCRIPTION = statusDesc
 			WHERE p.MSGID = Environment.Inref.JSON.Data.channelRef;
@@ -416,8 +416,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 		SET ghipsreq.Password = PW; --'3104b15a6e5e57ee5663f64e6a1fb0d940d7824c875e42d35f9a30a72';
 		-- End framing GhIPSSReq
 		--Logging code Start
-		SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-		CALL prepareGhIPSSLogger('GhIPSSReq',envValRef,OutputRoot);
+--		SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--		CALL prepareGhIPSSLogger('GhIPSSReq',envValRef,OutputRoot);
 		--Logging code End
 
 		SET Environment.Request.values.requestFlag = 'GhIPSSReq';
@@ -426,15 +426,15 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 
 		DECLARE envGhipssRes REFERENCE TO Environment.GhipssRes.XMLNSC.*:Envelope.*:Body.*:GIPTransactionOpResponse.*:GIPTransactionResponse;
 
-		INSERT INTO Database.FTC_OUTWARD (
-		AMOUNT, DATETIME, TRACKINGNUM,FUNCTIONCODE,ORIGINEBANK,DESTBANK,SESSIONID,CHANNELCODE,ACCOUNTTODEBIT,
-		NAMETODEBIT,ACCOUNTTOCREDIT,NAMETOCREDIT,NARRATION,LOGIN,PASSWORD,ACTCODE,APRVCODE,TRANSACTIONSTATUS
-		) VALUES (
-		envGhipssRes.*:Amount, envGhipssRes.*:datetime, envGhipssRes.*:TrackingNum, envGhipssRes.*:FunctionCode, envGhipssRes.*:OrigineBank,envGhipssRes.*:DestBank,
-		envGhipssRes.*:SessionID, ChannelCode, envGhipssRes.*:AccountToDebit,envGhipssRes.*:NameToDebit, envGhipssRes.*:AccountToCredit,envGhipssRes.*:NameToCredit,
-		envGhipssRes.*:Narration, Login,PW, envGhipssRes.*:ActCode,envGhipssRes.*:AprvCode,
-		'SUCCESS'
-		);
+--		INSERT INTO Database.FTC_OUTWARD (
+--		AMOUNT, DATETIME, TRACKINGNUM,FUNCTIONCODE,ORIGINEBANK,DESTBANK,SESSIONID,CHANNELCODE,ACCOUNTTODEBIT,
+--		NAMETODEBIT,ACCOUNTTOCREDIT,NAMETOCREDIT,NARRATION,LOGIN,PASSWORD,ACTCODE,APRVCODE,TRANSACTIONSTATUS
+--		) VALUES (
+--		envGhipssRes.*:Amount, envGhipssRes.*:datetime, envGhipssRes.*:TrackingNum, envGhipssRes.*:FunctionCode, envGhipssRes.*:OrigineBank,envGhipssRes.*:DestBank,
+--		envGhipssRes.*:SessionID, ChannelCode, envGhipssRes.*:AccountToDebit,envGhipssRes.*:NameToDebit, envGhipssRes.*:AccountToCredit,envGhipssRes.*:NameToCredit,
+--		envGhipssRes.*:Narration, Login,PW, envGhipssRes.*:ActCode,envGhipssRes.*:AprvCode,
+--		'SUCCESS'
+--		);
 
 
 		IF envGhipssRes.ActCode = '000' THEN
@@ -451,8 +451,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET outRef.actCode = InGIP.ActCode ;
 			SET outRef.aprvCode = InGIP.ActCode ;
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('ChannelResponse',envValRef,OutputRoot);
 			--Logging code End
 
 			PROPAGATE TO TERMINAL 'out2';
@@ -528,8 +528,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET Environment.Request.values.requestFlag = 'ReverseRTServiceReq';
 			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = ReverseRTServiceReq;
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('ReverseRTServiceReq',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('ReverseRTServiceReq',envValRef,OutputRoot);
 			--Logging code End
 
 			PROPAGATE TO TERMINAL 'out1';
@@ -549,7 +549,7 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			
 			UPDATE Database.CBS_TRANSACTION AS p
 			SET
-			MSGSTAT = txnDetailsRef.*:MSGSTAT,
+			MSGSTAT = envRevRTReqHead.*:MSGSTAT,
 			REVERSE_STATUS = statusCode,
 			REVERSE_STATUSDESCRIPTION = statusDesc
 			WHERE p.MSGID = Environment.Inref.JSON.Data.channelRef;
@@ -634,8 +634,8 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 			SET Environment.Request.values.requestFlag = 'TSQueryReq';
 			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = TSQueryReq;
 			--Logging code Start
-			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
-			CALL prepareGhIPSSLogger('TSQueryReq',envValRef,OutputRoot);
+--			SET envValRef.logData = getCastedPayLoad(OutputRoot.JSON,envValRef);
+--			CALL prepareGhIPSSLogger('TSQueryReq',envValRef,OutputRoot);
 			--Logging code End
 
 
