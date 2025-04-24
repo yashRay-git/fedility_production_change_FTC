@@ -666,7 +666,6 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 
 			DECLARE envTSQueryReq REFERENCE TO Environment.TSQueryReq.XMLNSC.*:Envelope.*:Body.*:GIPTransactionOpResponse.*:GIPTransactionResponse;
 			-- DBLogging code start
-			IF (envTSQueryReq.*:ActCode= '000' and envTSQueryReq.*:StatusQuery = '000' ) THEN
 				INSERT INTO Database.TSQ_OUTWARD (
 				AMOUNT, DATETIME, TRACKINGNUM, FUNCTIONCODE, ORIGINEBANK, DESTBANK, SESSIONID, CHANNELCODE, ACCOUNTTODEBIT,
 				NAMETODEBIT, ACCOUNTTOCREDIT, NAMETOCREDIT, NARRATION, LOGIN, PASSWORD, TRANSACTIONSTATUS,
@@ -692,37 +691,6 @@ CREATE COMPUTE MODULE fundsTransferCredit_Compute
 				envTSQueryReq.*:AprvCode,
 				envTSQueryReq.*:StatusQuery
 				);
-
-			ELSE
-				INSERT INTO Database.TSQ_OUTWARD (
-				AMOUNT, DATETIME, TRACKINGNUM, FUNCTIONCODE, ORIGINEBANK, DESTBANK, SESSIONID, CHANNELCODE, ACCOUNTTODEBIT,
-				NAMETODEBIT, ACCOUNTTOCREDIT, NAMETOCREDIT, NARRATION, LOGIN, PASSWORD, TRANSACTIONSTATUS,
-				ACTCODE, APRVCODE, STATUSQUERY
-				) VALUES (
-				envTSQueryReq.*:Amount,
-				envTSQueryReq.*:datetime,
-				envTSQueryReq.*:TrackingNum,
-				Fcode,
-				envTSQueryReq.*:OrigineBank ,
-				envTSQueryReq.*:DestBank ,
-				envTSQueryReq.*:SessionID ,
-				envTSQueryReq.*:ChannelCode ,
-				envTSQueryReq.*:AccountToDebit ,
-				envTSQueryReq.*:NameToDebit ,
-				envTSQueryReq.*:AccountToCredit ,
-				envTSQueryReq.*:NameToCredit ,
-				envTSQueryReq.*:Narration ,
-				Login,
-				PW,
-				'FAILURE',
-				envTSQueryReq.*:ActCode,
-				envTSQueryReq.*:AprvCode,
-				envTSQueryReq.*:StatusQuery
-				);
-			END IF;
-
-
-
 			IF envTSQueryReq.*:ActCode = '000' AND envTSQueryReq.*:StatusQuery = '000' THEN
 				-- Build Output JSON response
 
